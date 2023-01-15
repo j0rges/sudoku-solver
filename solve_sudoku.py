@@ -50,11 +50,12 @@ class Cell():
         self.groups[group.kind] = group
 
     def update_groups(self):
+        # Update the other cells in the same groups as this one based on this cell's new value.
         for group in self.groups.values():
             group.update(self)
 
     def remove_option(self, option):
-        # Only update if 
+        # Only update if the cell hasn't been set yet.
         if self.value == 0:
             self.possible_values.discard(option)
             # If there is only one option left, set the cell to the remaining number.
@@ -62,6 +63,7 @@ class Cell():
                 self.set(list(self.possible_values)[0])
 
     def remove_group_known(self, values):
+        # Only update if the cell hasn't been set yet.
         if self.value == 0:
             self.possible_values.difference_update(values)
             # If there is only one option left, set the cell to the remaining number.
@@ -83,12 +85,12 @@ class Group():
         self.cells = cells
         self.kind = kind
         self.known = set()
-        self.unkown = set(range(1, 10))
+        self.unknown = set(range(1, 10))
         for cell in self.cells:
             cell.add_group(self)
             if cell.is_set:
                 self.known.add(cell.value)
-                self.unkown.discard(cell.value)
+                self.unknown.discard(cell.value)
         # Remove options based on what is set in this group
         self.update_all()
     
@@ -97,7 +99,7 @@ class Group():
         assert cell in self.cells, "The cell does not appear to be in this group."
         value = cell.value
         self.known.add(value)
-        self.known.discard(value)
+        self.unknown.discard(value)
         # Remove the value as an option from all cells in group.
         for other_cell in self.cells:
             if not other_cell.is_set:
@@ -124,7 +126,6 @@ class Group():
         exclusive = options.difference(other_cell_options)
         if len(exclusive) == 1:
             # There is a number that can only be in this cell.
-            # Assumed that this is in the options
             return exclusive
         else:
             return options
@@ -144,6 +145,8 @@ class SudokuBoard():
 
     def __init__(self, start):
         # Build the board with the start values
+        assert len(start) == 9, "sudokus have 9 rows."
+        assert all([len(row) == 9 for row in start]), "every row in a sudoku has 9 columns."
         self.board = []
         for i in range(9):
             row = []
@@ -155,6 +158,8 @@ class SudokuBoard():
         self.groups = self.make_groups()
 
     def make_groups(self):
+        """ Create groups that represents the constraints of the sudoku 
+            rules (can't repeat in row/column or 3x3 quadrant. """
         all_groups = []
         # Group for each 3x3 quadrant
         for row_range in [(0,3), (3, 6), (6, 9)]:
@@ -178,10 +183,12 @@ class SudokuBoard():
         return all_groups
 
     def solve(self):
+        """ attempt to fill in the value of all the cells. """
         for group in self.groups:
             group.solve_group()
 
     def __str__(self):
+        """ Print the cells in a readable way. """
         string_board = ''
         for i, row in enumerate(self.board):
             for j, cell in enumerate(row):
@@ -203,6 +210,5 @@ if __name__=='__main__':
     #     print(row)
     # 
     sudoku = SudokuBoard(starting_point)
-    # print(sudoku)
     sudoku.solve()
     print(sudoku)
