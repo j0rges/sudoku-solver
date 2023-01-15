@@ -28,12 +28,14 @@ def parse_sudoku_file(file_path: str, divider: str = ' '):
 
 class Cell():
 
-    def __init__(self, value: int) -> None:
+    def __init__(self, value: int, row: int, col: int) -> None:
         assert value >= 0 and value <= 9, "Value must be between 0 and 9. 0 represents empty."
         self.value = value
+        self.row = row
+        self.col = col
         if self.value == 0:
             self.possible_values = set(range(1, 10))
-        self.groups = []
+        self.groups = {}
 
     @property
     def is_set(self):
@@ -45,10 +47,10 @@ class Cell():
         self.update_groups()
 
     def add_group(self, group):
-        self.groups.append(group)
+        self.groups[group.kind] = group
 
     def update_groups(self):
-        for group in self.groups:
+        for group in self.groups.values():
             group.update(self)
 
     def remove_option(self, option):
@@ -73,10 +75,13 @@ class Cell():
 
 
 class Group():
+    """ Represents a group of 9 cells in sudoku which constrain each other, that is
+        a row, a column or one of the 9 3x3 quadrants."""
 
-    def __init__(self, cells) -> None:
+    def __init__(self, cells: Cell, kind: str) -> None:
         assert len(cells) == 9, "There must be 9 cells in a group."
         self.cells = cells
+        self.kind = kind
         self.known = set()
         self.unkown = set(range(1, 10))
         for cell in self.cells:
@@ -88,6 +93,7 @@ class Group():
         self.update_all()
     
     def update(self, cell):
+        """ Call when a cell is set. Update all cells in group based on the new cell value. """
         assert cell in self.cells, "The cell does not appear to be in this group."
         value = cell.value
         self.known.add(value)
@@ -98,8 +104,14 @@ class Group():
                 other_cell.remove_option(value)
 
     def update_all(self):
+        """ Remove all values that are already set in the group from the 
+            options of the cells that aren't set."""
         for cell in self.cells:
             cell.remove_group_known(self.known)
+
+    def find_cell_options(self, cell):
+        """ Check if there is a number in the group, that can only be in one cell. """
+        pass
 
 
 class SudokuBoard():
@@ -110,7 +122,7 @@ class SudokuBoard():
         for i in range(9):
             row = []
             for j in range(9):
-                cell = Cell(start[i][j])
+                cell = Cell(start[i][j], i, j)
                 row.append(cell)
             self.board.append(row)
         # Make groups (this will autocomplete some of the board)
@@ -125,17 +137,17 @@ class SudokuBoard():
                 for i in range(*row_range):
                     for j in range(*col_range):
                         group_cells.append(self.board[i][j])
-                group = Group(group_cells)
+                group = Group(group_cells, 'block')
                 all_groups.append(group)
         # Group for each row
         for row in range(9):
             group_cells = self.board[row]
-            group = Group(group_cells)
+            group = Group(group_cells, 'row')
             all_groups.append(group)
         # Group for each column
         for col in range(9):
             group_cells = [self.board[i][col] for i in range(9)]
-            group = Group(group_cells)
+            group = Group(group_cells, 'column')
             all_groups.append(group)
         return all_groups
 
