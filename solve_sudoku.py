@@ -109,9 +109,35 @@ class Group():
         for cell in self.cells:
             cell.remove_group_known(self.known)
 
-    def find_cell_options(self, cell):
+    def find_cell_options(self, cell: Cell):
         """ Check if there is a number in the group, that can only be in one cell. """
-        pass
+        options = set(range(1, 10))
+        other_cell_options = set()
+        for other_cell in self.cells:
+            if other_cell == cell:
+                continue
+            if other_cell.is_set:
+                options.discard(other_cell.value)
+            else:
+                other_cell_options.update(other_cell.possible_values)
+        
+        exclusive = options.difference(other_cell_options)
+        if len(exclusive) == 1:
+            # There is a number that can only be in this cell.
+            # Assumed that this is in the options
+            return exclusive
+        else:
+            return options
+        
+    def solve_group(self):
+        """ Attempt to complete the cells in the group (only using the other cells in the group). """
+        for cell in self.cells:
+            if not cell.is_set:
+                options = self.find_cell_options(cell)
+                if len(options) == 1:
+                    # The value has been found!
+                    value = list(options)[0]
+                    cell.set(value)
 
 
 class SudokuBoard():
@@ -152,7 +178,8 @@ class SudokuBoard():
         return all_groups
 
     def solve(self):
-        raise NotImplementedError
+        for group in self.groups:
+            group.solve_group()
 
     def __str__(self):
         string_board = ''
@@ -176,4 +203,6 @@ if __name__=='__main__':
     #     print(row)
     # 
     sudoku = SudokuBoard(starting_point)
+    # print(sudoku)
+    sudoku.solve()
     print(sudoku)
