@@ -2,9 +2,20 @@
 
 This is a repository with a simple algorithm to solve sudokus.
 It is only a small project I have made for fun. I first made a
-sudoku solver script when I was in secondary school and barely
-knew the basics of Python, which wasn't able to solve hard sudokus.
+sudoku solver script, which wasn't even able to solve hard sudokus,
+when I was in secondary school and barely knew the basics of Python.
 This is my solution now that I have more coding experience.
+
+The way it works is very simple, each cell has a list of possible
+values, when the length of this list is one, the cell is considered
+to have its final value (it is set). When the board is parsed, or any value
+is set, then these values are removed from the other cells in the same
+row, column and square. 
+
+If after doing the above, there is still cells with more than one possible
+value, then it makes guesses in a Depth First Search manner until it finds
+a set of guesses that lets it complete the board.
+
 
 ## Installation
 
