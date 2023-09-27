@@ -1,10 +1,16 @@
 import argparse
-import os
-import sys
+from typing import List, Tuple
+from copy import deepcopy
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('start', type=str,
                     help="file containing the starting state of the sudoku.")
+
+
+class InvalidState(Exception):
+    """ Exception raised when the sudoku has an erroneous value. """
+    pass
 
 
 def parse_file_element(val: str):
@@ -42,19 +48,23 @@ class Cell():
         """ Whether the value is known or not. """
         return self.value > 0
 
-    def set(self, value):
+    def set(self, value: int):
+        """ Set value of the cell to a number (1-9)"""
         self.value = value
+        self.possible_values = set([value])
         self.update_groups()
 
     def add_group(self, group):
         self.groups[group.kind] = group
 
     def update_groups(self):
+        """ Cascade changes in this cell. """
         # Update the other cells in the same groups as this one based on this cell's new value.
         for group in self.groups.values():
             group.update(self)
 
     def remove_option(self, option):
+        """ Remove a value from the possible values of this cell. """
         # Only update if the cell hasn't been set yet.
         if self.value == 0:
             self.possible_values.discard(option)
@@ -62,7 +72,8 @@ class Cell():
             if len(self.possible_values) == 1:
                 self.set(list(self.possible_values)[0])
 
-    def remove_group_known(self, values):
+    def remove_group_known(self, values: set):
+        """ Remove a set of values from the possible values of this cell. """
         # Only update if the cell hasn't been set yet.
         if self.value == 0:
             self.possible_values.difference_update(values)
@@ -94,7 +105,7 @@ class Group():
         # Remove options based on what is set in this group
         self.update_all()
     
-    def update(self, cell):
+    def update(self, cell: Cell):
         """ Call when a cell is set. Update all cells in group based on the new cell value. """
         assert cell in self.cells, "The cell does not appear to be in this group."
         value = cell.value
@@ -131,7 +142,8 @@ class Group():
             return options
         
     def solve_group(self):
-        """ Attempt to complete the cells in the group (only using the other cells in the group). """
+        """ Attempt to complete the cells in the group. """
+        # Check if any cells are the only option for a number.
         for cell in self.cells:
             if not cell.is_set:
                 options = self.find_cell_options(cell)
@@ -139,21 +151,31 @@ class Group():
                     # The value has been found!
                     value = list(options)[0]
                     cell.set(value)
+                
+    def remove_options(self, value: int, exceptions: List[Cell]):
+        """ Set the cells as the only ones in this group which can hold the value. """
+        for cell in self.cells:
+            if not (cell.is_set or cell in exceptions):
+                cell.remove_option(value)
 
 
 class SudokuBoard():
 
-    def __init__(self, start):
+    def __init__(self, start: list):
         # Build the board with the start values
+        self.history = []
+        self.set_board(start)
+
+    def set_board(self, start: list):
         assert len(start) == 9, "sudokus have 9 rows."
         assert all([len(row) == 9 for row in start]), "every row in a sudoku has 9 columns."
-        self.board = []
+        self._board = []
         for i in range(9):
             row = []
             for j in range(9):
                 cell = Cell(start[i][j], i, j)
                 row.append(cell)
-            self.board.append(row)
+            self._board.append(row)
         # Make groups (this will autocomplete some of the board)
         self.groups = self.make_groups()
 
@@ -167,17 +189,17 @@ class SudokuBoard():
                 group_cells = []
                 for i in range(*row_range):
                     for j in range(*col_range):
-                        group_cells.append(self.board[i][j])
+                        group_cells.append(self._board[i][j])
                 group = Group(group_cells, 'block')
                 all_groups.append(group)
         # Group for each row
         for row in range(9):
-            group_cells = self.board[row]
+            group_cells = self._board[row]
             group = Group(group_cells, 'row')
             all_groups.append(group)
         # Group for each column
         for col in range(9):
-            group_cells = [self.board[i][col] for i in range(9)]
+            group_cells = [self._board[i][col] for i in range(9)]
             group = Group(group_cells, 'column')
             all_groups.append(group)
         return all_groups
@@ -187,10 +209,27 @@ class SudokuBoard():
         for group in self.groups:
             group.solve_group()
 
+        if self.completion < 1:
+            # Attempt to solve through Depth First Search
+            pass
+
+    @property
+    def board_state(self):
+        return [[cell.value for cell in row] for row in self._board]
+    
+    @property
+    def completion(self):
+        known = sum([sum([cell.is_set for cell in row]) for row in self._board])
+        return known / 9**2
+
+    def __getitem__(self, key: Tuple[int, int]):
+        i, j = key
+        return self._board[i][j]
+
     def __str__(self):
         """ Print the cells in a readable way. """
         string_board = ''
-        for i, row in enumerate(self.board):
+        for i, row in enumerate(self._board):
             for j, cell in enumerate(row):
                 if j in [3, 6]:
                     string_board = string_board + ' |'
@@ -199,16 +238,50 @@ class SudokuBoard():
             if i in [2, 5]:
                 string_board = string_board + '-' * 22 + '\n'
         return string_board
-            
+
+
+def copy_state(state):
+    return deepcopy(state)
+
+
+def DFS_solve(initial_state: List):
+    board = SudokuBoard(initial_state)
+    board.solve()
+    if board.completion == 1:
+        return board
+    stack = []
+    # Add the initial set of states to the stack
+    chosen = False
+    for i in range(9):
+        if chosen: break
+        for j in range(9):
+            cell = board[i, j]
+            if cell.value == 0:
+                state = board.board_state
+                for value in cell.possible_values:
+                    state_ = copy_state(state)
+                    state_[i][j] = value
+                    stack.append(state_)
+                chosen = True
+            if chosen: break
+    # Try to solve
+    while len(stack) > 0:
+        print('guess')
+        state = stack.pop()
+        try:
+            # TODO: catch failed to solve exception
+            solved = DFS_solve(state)
+            return solved
+        except InvalidState:
+            continue
+    # There was no possible value for the chosen undecided cell that was valid.
+    raise InvalidState
+
 
 
 if __name__=='__main__':
     args = parser.parse_args()
     starting_point = parse_sudoku_file(args.start)
-    # 
-    # for row in starting_point:
-    #     print(row)
-    # 
-    sudoku = SudokuBoard(starting_point)
-    sudoku.solve()
+    sudoku = DFS_solve(starting_point)
     print(sudoku)
+    print(sudoku.completion)
