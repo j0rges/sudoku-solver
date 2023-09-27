@@ -1,5 +1,4 @@
 # Sudoku Solver
----
 
 This is a repository with a simple algorithm to solve sudokus.
 It is only a small project I have made for fun. I first made a
@@ -8,7 +7,6 @@ knew the basics of Python, which wasn't able to solve hard sudokus.
 This is my solution now that I have more coding experience.
 
 ## Installation
----
 
 All you need to do is clone this repository. The script doesn't
 use any libraries that are not part of the Python Standard Library
@@ -16,7 +14,6 @@ use any libraries that are not part of the Python Standard Library
 
 
 ## How to use
----
 
 You need to follow 2 steps to solve a sudoku:
 
