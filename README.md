@@ -24,7 +24,7 @@ You need to follow 2 steps to solve a sudoku:
 2. Execute the solver script: `python3 solve_sudoky.py <filename>`
 
 
-### Sudoku file format
+## Sudoku file format
 
 The program parses plain text files with 9 lines in the following format:
 
